@@ -3,7 +3,9 @@ from node import Flavor
 import openai
 import pickle
 import tqdm
-import json 
+import os
+import git
+import shutil
 
 openai_key = "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"
 openai.api_key = openai_key
@@ -66,7 +68,18 @@ def generate_replace_file(file, replace_map):
         repl = method_header + " " + summary
         final_data = final_data.replace("".join(data[start - 1 : end]), repl)
     return final_data
-    
+
+def get_docfile(prompt):
+    completion = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+                {"role": "system", "content": "You are a code summarization assistant."},
+                {"role": "user", "content": f'{prompt}\n Generate a well-structured and comprehensive documentation in .md format for the following Python file, including code snippets and example usages when necessary. Choose which sections to add or hide based on the relevance of the content: '}
+            ]
+    )    
+
+    return completion['choices'][0]['message']['content']
+
 def summarize_repo(repo_dir, load_from_file=True):
     if load_from_file:
         with open('my_dict.pickle', 'rb') as f:
@@ -74,11 +87,18 @@ def summarize_repo(repo_dir, load_from_file=True):
             cm = constrcut_replace_maps(graph)
             
             for file in cm:
-                repl_map = generate_replace_file(file, cm[file])
-                with open(file.replace(".py", "")+"replaced.py", "w") as f:
-                    f.write(repl_map)
-
-                
+                repl_data = generate_replace_file(file, cm[file])
+                try:
+                    os.mkdir("cloned_repo/autodocs")
+                except:
+                    pass
+                try:
+                    print(f'Generating docs for {file}')
+                    docs = get_docfile(repl_data)
+                    with open("cloned_repo/autodocs/"+file.replace(".py", ".md"), "w") as f:
+                        f.write(docs)
+                except:
+                    print(f'Failed for {file}')
 
         return graph
     graph, file_map = get_call_graph_from_repo(repo_dir)
@@ -95,6 +115,42 @@ def generate_docs():
     summarize_repo(".")
 
 
+def clone_repo(repo_url, local_dir):
+    try:
+        git.Repo.clone_from(repo_url, local_dir)
+    except Exception as e:
+        print(f"Error while cloning the repository: {e}")
 
+def push_to_repo(repo_dir, branch, commit_message, pat, repo_url):
+    try:
+        repo = git.Repo(repo_dir)
+        try:
+            repo.git.checkout(branch)
+        except git.exc.GitCommandError:
+            repo.git.checkout('-b', branch)
+        repo.git.add(A=True)
+        repo.git.commit('-m', commit_message)
+        repo.git.push(f"https://{pat}@{repo_url[8:]}")
+    except Exception as e:
+        print(f"Error while pushing to the repository: {e}")
 
+def generate_docs_for_github_repo(pat, repo_url, branch="autodocs"):
+    local_dir = "cloned_repo"
+    
+    # Clone the repository
+    clone_repo(repo_url, local_dir)
+
+    # Generate documentation
+    graph = summarize_repo(local_dir, load_from_file=True)
+    print("AutoDocs Generated")
+
+    # Push the generated documentation to the repository
+    commit_message = "AutoDocs"
+    push_to_repo(local_dir, branch, commit_message, pat, repo_url)
+
+    # Clean up the local repository directory
+    shutil.rmtree(local_dir)
+
+github_token = "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"
+generate_docs_for_github_repo(github_token, "https://github.com/jborg2/code_summary_microservice")
 summarize_repo(".")

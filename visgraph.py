@@ -252,4 +252,5 @@ class VisualGraph(object):
                 file_map[node.filename] = []
             else:
                 file_map[node.filename].append(node)
+
         return root_graph, file_map
