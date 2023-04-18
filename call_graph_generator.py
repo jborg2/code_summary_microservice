@@ -13,7 +13,7 @@ def list_files(dir):
     return files
 
 def get_call_graph_from_repo(repo_path):
-    v = CallGraphVisitor(list_files("../pyan"))
+    v = CallGraphVisitor(list_files(repo_path))
     graph_options = {
             "draw_defines": True,
             "draw_uses": True,
