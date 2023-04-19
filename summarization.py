@@ -134,7 +134,7 @@ def push_to_repo(repo_dir, branch, commit_message, pat, repo_url):
             repo.git.checkout('-b', branch)
         repo.git.add(A=True)
         repo.git.commit('-m', commit_message)
-        repo.git.push(f"https://{pat}@{repo_url[8:]}")
+        repo.git.push(f"https://{pat}@{repo_url[8:]} --force")
     except Exception as e:
         print(f"Error while pushing to the repository: {e}")
 
