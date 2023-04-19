@@ -12,12 +12,13 @@ def test_analyse_repo(pat, repo_url, username):
     print("Analyse Repo Response:")
     print(response.json())
 
-def test_push_to_github(pat, repo_url, local_dir, branch="autodocs"):
+def test_push_to_github(pat, repo_url, local_dir, username, branch="autodocs"):
     data = {
         "pat": pat,
         "repo_url": repo_url,
         "local_dir": local_dir,
-        "branch": branch
+        "branch": branch,
+        "username": username
     }
     response = httpx.post(f"{base_url}/push_to_github", json=data)
     print("Push to GitHub Response:")
@@ -33,4 +34,4 @@ if __name__ == "__main__":
     #test_analyse_repo(pat, repo_url, username)
 
     # Test push_to_github endpoint
-    test_push_to_github(pat, repo_url, local_dir)
+    test_push_to_github(pat, repo_url, local_dir, username)

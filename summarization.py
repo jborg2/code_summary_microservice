@@ -145,8 +145,9 @@ def generate_documentation(local_dir):
     print("AutoDocs Generated")
     return graph
 
-def push_documentation_to_github(pat, repo_url, local_dir, branch="autodocs"):
+def push_documentation_to_github(pat, repo_url, local_dir,username, branch="autodocs"):
     # Push the generated documentation to the repository
+    local_dir = os.path.join(local_dir, username, "cloned_repo")
     commit_message = "AutoDocs"
     push_to_repo(local_dir, branch, commit_message, pat, repo_url)
     print("AutoDocs Pushed to GitHub")

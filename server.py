@@ -20,6 +20,7 @@ class PushToGithubData(BaseModel):
     repo_url: str
     local_dir: str
     branch: Optional[str] = "autodocs"
+    username: str
 
 @app.post("/analyse_repo")
 def analyse_repo(data: AnalyseRepoData):
@@ -35,7 +36,7 @@ def analyse_repo(data: AnalyseRepoData):
 @app.post("/push_to_github")
 def push_to_github(data: PushToGithubData):
     try:
-        push_documentation_to_github(data.pat, data.repo_url, data.local_dir, data.branch)
+        push_documentation_to_github(data.pat, data.repo_url, data.local_dir, data.username, data.branch)
         return {"message": "Successfully pushed the documentation to the GitHub repository."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
