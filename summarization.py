@@ -163,7 +163,7 @@ def generate_docs_for_github_repo(pat, repo_url, username, branch="autodocs"):
     push_documentation_to_github(pat, repo_url, local_dir, branch)
 
     # Clean up the local repository directory
-    shutil.rmtree(local_dir)
+    #shutil.rmtree(local_dir)
 
 #github_token = "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"
 #generate_docs_for_github_repo(github_token, "https://github.com/jborg2/code_summary_microservice")
