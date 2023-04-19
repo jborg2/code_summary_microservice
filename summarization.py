@@ -92,13 +92,12 @@ def summarize_repo(repo_dir, load_from_file=True):
                 if not os.path.exists(autodocs_dir):
                     os.makedirs(autodocs_dir)
                 try:
-                    print(f'Generating docs for {file}')
-                    print("Path:", os.path.join(repo_dir, 'autodocs'))
-                    exit()
-                    print(f"outputting to: {os.path.join(os.path.join(repo_dir, 'autodocs'), file.replace('.py', '.md'))}")
+                    file_name = os.path.basename(file).replace(".py", ".md")
+                    root = os.path.join(repo_dir, 'autodocs')
+                    path = os.path.join(root, file_name)
                     docs = get_docfile(repl_data)
-                    print(f"outputting to: {os.path.join(os.path.join(repo_dir, 'autodocs'), file.replace('.py', '.md'))}")
-                    with open(os.path.join(repo_dir, "autodocs")+file.replace(".py", ".md"), "w") as f:
+                    print(f"outputting to: {path}")
+                    with open(path, "w") as f:
                         f.write(docs)
                 except:
                     print(f'Failed for {file}')

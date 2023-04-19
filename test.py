@@ -30,7 +30,7 @@ if __name__ == "__main__":
     local_dir = "."
 
     # Test analyse_repo endpoint
-    test_analyse_repo(pat, repo_url, username)
+    #test_analyse_repo(pat, repo_url, username)
 
     # Test push_to_github endpoint
     test_push_to_github(pat, repo_url, local_dir)
