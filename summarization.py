@@ -93,7 +93,7 @@ def summarize_repo(repo_dir, load_from_file=True):
                     os.makedirs(autodocs_dir)
                 try:
                     print(f'Generating docs for {file}')
-                    print(os.path.join(repo_dir, 'autodocs'))
+                    print("Path:", os.path.join(repo_dir, 'autodocs'))
                     exit()
                     print(f"outputting to: {os.path.join(os.path.join(repo_dir, 'autodocs'), file.replace('.py', '.md'))}")
                     docs = get_docfile(repl_data)
