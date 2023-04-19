@@ -127,6 +127,7 @@ def clone_repo(repo_url, local_dir):
 
 def push_to_repo(repo_dir, branch, commit_message, pat, repo_url):
     try:
+        print(repo_dir)
         repo = git.Repo(repo_dir)
         try:
             repo.git.checkout(branch)
