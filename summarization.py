@@ -81,6 +81,7 @@ def get_docfile(prompt):
     return completion['choices'][0]['message']['content']
 
 def summarize_repo(repo_dir, load_from_file=True):
+    autodocs_dir = os.path.join(repo_dir, "autodocs")
     if load_from_file:
         with open('my_dict.pickle', 'rb') as f:
             graph = pickle.load(f)
@@ -88,19 +89,22 @@ def summarize_repo(repo_dir, load_from_file=True):
             
             for file in cm:
                 repl_data = generate_replace_file(file, cm[file])
-                try:
-                    os.mkdir("cloned_repo/autodocs")
-                except:
-                    pass
+                if not os.path.exists(autodocs_dir):
+                    os.makedirs(autodocs_dir)
                 try:
                     print(f'Generating docs for {file}')
+                    print(os.path.join(repo_dir, 'autodocs'))
+                    exit()
+                    print(f"outputting to: {os.path.join(os.path.join(repo_dir, 'autodocs'), file.replace('.py', '.md'))}")
                     docs = get_docfile(repl_data)
-                    with open("cloned_repo/autodocs/"+file.replace(".py", ".md"), "w") as f:
+                    print(f"outputting to: {os.path.join(os.path.join(repo_dir, 'autodocs'), file.replace('.py', '.md'))}")
+                    with open(os.path.join(repo_dir, "autodocs")+file.replace(".py", ".md"), "w") as f:
                         f.write(docs)
                 except:
                     print(f'Failed for {file}')
 
         return graph
+    
     graph, file_map = get_call_graph_from_repo(repo_dir)
 
     for node in tqdm.tqdm(graph.nodes.keys()):
@@ -114,8 +118,9 @@ def summarize_repo(repo_dir, load_from_file=True):
 def generate_docs():
     summarize_repo(".")
 
-
 def clone_repo(repo_url, local_dir):
+    if not os.path.exists(local_dir):
+        os.makedirs(local_dir)
     try:
         git.Repo.clone_from(repo_url, local_dir)
     except Exception as e:
@@ -134,23 +139,32 @@ def push_to_repo(repo_dir, branch, commit_message, pat, repo_url):
     except Exception as e:
         print(f"Error while pushing to the repository: {e}")
 
-def generate_docs_for_github_repo(pat, repo_url, branch="autodocs"):
-    local_dir = "cloned_repo"
+def generate_documentation(local_dir):
+    # Generate documentation
+    graph = summarize_repo(local_dir, load_from_file=True)
+    print("AutoDocs Generated")
+    return graph
+
+def push_documentation_to_github(pat, repo_url, local_dir, branch="autodocs"):
+    # Push the generated documentation to the repository
+    commit_message = "AutoDocs"
+    push_to_repo(local_dir, branch, commit_message, pat, repo_url)
+    print("AutoDocs Pushed to GitHub")
+
+def generate_docs_for_github_repo(pat, repo_url, username, branch="autodocs"):
+    local_dir = os.path.join(username, "cloned_repo")
     
     # Clone the repository
     clone_repo(repo_url, local_dir)
 
     # Generate documentation
-    graph = summarize_repo(local_dir, load_from_file=True)
-    print("AutoDocs Generated")
+    graph = generate_documentation(local_dir)
 
     # Push the generated documentation to the repository
-    commit_message = "AutoDocs"
-    push_to_repo(local_dir, branch, commit_message, pat, repo_url)
+    push_documentation_to_github(pat, repo_url, local_dir, branch)
 
     # Clean up the local repository directory
     shutil.rmtree(local_dir)
 
-github_token = "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"
-generate_docs_for_github_repo(github_token, "https://github.com/jborg2/code_summary_microservice")
-summarize_repo(".")
+#github_token = "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"
+#generate_docs_for_github_repo(github_token, "https://github.com/jborg2/code_summary_microservice")
