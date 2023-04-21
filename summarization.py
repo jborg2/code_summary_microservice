@@ -81,38 +81,46 @@ def get_docfile(prompt):
     return completion['choices'][0]['message']['content']
 
 def summarize_repo(repo_dir, load_from_file=True):
+    print("Repo_dir: ",repo_dir)
     autodocs_dir = os.path.join(repo_dir, "autodocs")
     if load_from_file:
         with open('my_dict.pickle', 'rb') as f:
             graph = pickle.load(f)
-            cm = constrcut_replace_maps(graph)
-            
-            for file in cm:
-                repl_data = generate_replace_file(file, cm[file])
-                if not os.path.exists(autodocs_dir):
-                    os.makedirs(autodocs_dir)
-                try:
-                    file_name = os.path.basename(file).replace(".py", ".md")
-                    root = os.path.join(repo_dir, 'autodocs')
-                    path = os.path.join(root, file_name)
-                    docs = get_docfile(repl_data)
-                    print(f"outputting to: {path}")
-                    with open(path, "w") as f:
-                        f.write(docs)
-                except:
-                    print(f'Failed for {file}')
-
-        return graph
-    
-    graph, file_map = get_call_graph_from_repo(repo_dir)
+            file_map = constrcut_replace_maps(graph)
+    else:
+        graph, file_map = get_call_graph_from_repo(repo_dir)
 
     for node in tqdm.tqdm(graph.nodes.keys()):
         if node.flavor == Flavor.METHOD:
             run_summary(graph, node)
 
     with open('my_dict.pickle', 'wb') as f:
-        pickle.dump(graph.nodes, f)
-    return graph
+        pickle.dump(graph, f)
+
+    repl_map = constrcut_replace_maps(graph.nodes)
+
+    root = os.path.join(repo_dir, 'autodocs')
+    if not os.path.exists(root):
+        os.makedirs(root)
+
+    print("Root: ", root)
+    for file in file_map:
+        try:
+            repl_data = generate_replace_file(file, repl_map[file])
+        except:
+            repl_data = open(file).read()
+        
+        try:
+            file_name = os.path.basename(file).replace(".py", ".md")
+            root = os.path.join(repo_dir, 'autodocs')
+            path = os.path.join(root, file_name)
+            docs = get_docfile(repl_data)
+            print(f"outputting to: {path}")
+            with open(path, "w") as f:
+                f.write(docs)
+        except:
+            print(f'Failed for {file}')
+
 
 def generate_docs():
     summarize_repo(".")
@@ -141,19 +149,20 @@ def push_to_repo(repo_dir, branch, commit_message, pat, repo_url):
 
 def generate_documentation(local_dir):
     # Generate documentation
-    graph = summarize_repo(local_dir, load_from_file=True)
+    graph = summarize_repo(local_dir, load_from_file=False)
     print("AutoDocs Generated")
     return graph
 
 def push_documentation_to_github(pat, repo_url, local_dir,username, branch="autodocs"):
     # Push the generated documentation to the repository
-    local_dir = os.path.join(local_dir, username, "cloned_repo")
+    local_dir = os.path.join(local_dir, username, repo_url[8:])
     commit_message = "AutoDocs"
     push_to_repo(local_dir, branch, commit_message, pat, repo_url)
     print("AutoDocs Pushed to GitHub")
 
 def generate_docs_for_github_repo(pat, repo_url, username, branch="autodocs"):
-    local_dir = os.path.join(username, "cloned_repo")
+    local_dir = os.path.join(username, repo_url[8:])
+    print("localdir: ", local_dir)
     
     # Clone the repository
     clone_repo(repo_url, local_dir)
