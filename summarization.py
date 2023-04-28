@@ -226,11 +226,11 @@ async def generate_documentation(task_id, local_dir):
     print("AutoDocs Generated")
     return graph
 
-def push_documentation_to_github(pat, repo_url, local_dir,username, branch="autodocs"):
+def push_documentation_to_github(pat, repo_url, local_dir,username, access_token, branch="autodocs"):
     # Push the generated documentation to the repository
     local_dir = os.path.join(local_dir, username, repo_url[8:])
     commit_message = "AutoDocs"
-    push_to_repo(local_dir, branch, commit_message, pat, repo_url)
+    push_to_repo(local_dir, branch, commit_message, access_token, repo_url)
     print("AutoDocs Pushed to GitHub")
 
 async def generate_docs_for_github_repo(pat, repo_url, username, branch="autodocs"):
