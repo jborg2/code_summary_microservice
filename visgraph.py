@@ -119,6 +119,7 @@ class VisualGraph(object):
         self.edges = edges or []
         self.subgraphs = subgraphs or []
         self.grouped = grouped
+        self.in_progress = set()
 
     @classmethod
     def from_visitor(cls, visitor, options=None, logger=None):

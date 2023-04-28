@@ -6,6 +6,7 @@ import tqdm
 import os
 import git
 import shutil
+import json 
 
 openai_key = "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"
 openai.api_key = openai_key
@@ -46,30 +47,41 @@ async def run_chatgpt_prompt(code, subcalls):
     return completion['choices'][0]['message']['content']
 
 
-async def run_summary(graph, node, chain=[]):
+import asyncio
+
+async def run_summary(task_id, graph, node, chain=[]):
     tasks = []
     graph.in_progress.add(node)
+    if graph.nodes[node]["summary"] is not None:
+        return
+    
     for subcall in graph.nodes[node]["subcalls"]:
-        if subcall.flavor == Flavor.METHOD or subcall.flavor == Flavor.FUNCTION:
+        if subcall.flavor in [Flavor.METHOD, Flavor.FUNCTION, Flavor.CLASSMETHOD, Flavor.STATICMETHOD]:
             if graph.nodes[subcall]["summary"] is None and subcall.name != node.name and subcall not in chain and node not in graph.in_progress:
-                tasks.append(run_summary(graph, subcall, [node] + chain))
+                tasks.append(run_summary(task_id, graph, subcall, [node] + chain))
 
     # Run all tasks concurrently
     await asyncio.gather(*tasks)
 
     subcalls = {}
     for subsubcall in graph.nodes[node]["subcalls"]:
-        if subsubcall.flavor == Flavor.METHOD or subsubcall.flavor == Flavor.FUNCTION:
+        if subsubcall.flavor in [Flavor.METHOD, Flavor.FUNCTION, Flavor.CLASSMETHOD, Flavor.STATICMETHOD]:
             subcalls[subsubcall] = graph.nodes[subsubcall]["summary"]
 
     code = "".join(open(graph.nodes[node]["file"]).readlines()[node.ast_node.lineno - 1:node.ast_node.end_lineno+1])
     graph.nodes[node]["summary"] = await run_chatgpt_prompt(code, subcalls)
+    
+
+    current_summaries = dict([(node.namespace + "." + node.name, graph.nodes[node]["summary"]) for node in graph.nodes if graph.nodes[node]["summary"] is not None])
+    
+    await collection.update_one({"task_id": task_id}, {"$set": {"summaries": current_summaries}})
+
 
     
 def constrcut_replace_maps(nodes):
     replace_map = {}
     for node in nodes:
-        if node.flavor == Flavor.METHOD or node.flavor == Flavor.FUNCTION:
+        if node.flavor in [Flavor.METHOD, Flavor.FUNCTION, Flavor.CLASSMETHOD, Flavor.STATICMETHOD]:
             file = nodes[node]["file"]
             if file not in replace_map:
                 replace_map[file] = []
@@ -103,6 +115,7 @@ async def get_docfile(prompt):
 async def update_collection(task_id, update):
     await collection.update_one({"task_id": task_id}, {"$set": update})
 
+
 async def summarize_repo(task_id, repo_dir, load_from_file=True):
     print("Repo_dir: ", repo_dir)
     autodocs_dir = os.path.join(repo_dir, "autodocs")
@@ -113,10 +126,28 @@ async def summarize_repo(task_id, repo_dir, load_from_file=True):
     else:
         graph, file_map = get_call_graph_from_repo(repo_dir)
 
+    edges = {}
+
+    def generate_edges(node, chain=[]):
+        node_is_valid = node.flavor in [Flavor.METHOD, Flavor.FUNCTION, Flavor.CLASSMETHOD, Flavor.STATICMETHOD]
+        if node_is_valid:
+            if node.namespace+'.'+node.name not in edges:
+                edges[node.namespace+'.'+node.name] = []
+        for subcall in graph.nodes[node]["subcalls"]:
+            if subcall.flavor in [Flavor.METHOD, Flavor.FUNCTION, Flavor.CLASSMETHOD, Flavor.STATICMETHOD]:
+                if node_is_valid and subcall.namespace not in edges[node.namespace+'.'+node.name]:
+                    edges[node.namespace+'.'+node.name].append(subcall.namespace+'.'+subcall.name)
+        
+
+    for node in graph.nodes.keys():
+        generate_edges(node)
+
+    await collection.update_one({"task_id": task_id}, {"$set": {"edges": edges}})
+
     for node in tqdm.tqdm(graph.nodes.keys()):
         print("running summaries")
-        if node.flavor == Flavor.METHOD or node.flavor == Flavor.FUNCTION:
-            await run_summary(graph, node)
+        if node.flavor in [Flavor.METHOD, Flavor.FUNCTION, Flavor.CLASSMETHOD, Flavor.STATICMETHOD]:
+            await run_summary(task_id, graph, node)
 
     with open('my_dict.pickle', 'wb') as f:
         pickle.dump(graph, f)

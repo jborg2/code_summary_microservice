@@ -34,10 +34,10 @@ def test_get_task(task_id):
 
 if __name__ == "__main__":
     pat = "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"
-    repo_url = "https://github.com/jborg2/code_summary_microservice"
+    repo_url = "https://github.com/jborg2/test_repo"
     username = "jrgood01"
     local_dir = "."
-    repo_name="code_summary_microservice"
+    repo_name="test_repo"
 
     # Test analyse_repo endpoint
     task_id = test_analyse_repo(pat, repo_url, username, repo_name)

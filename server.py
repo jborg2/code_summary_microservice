@@ -58,6 +58,8 @@ async def create_summary(task_id: str, data: AnalyseRepoData):
         "repo_name": data.repo_name,
         "failed_summaries":{},
         "completed_summaries": {},
+        "edges": {},
+        "summaries":{},
         "status": "started"
     }
     await collection.insert_one(summary)
