@@ -10,7 +10,18 @@ import shutil
 openai_key = "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"
 openai.api_key = openai_key
 
-def run_chatgpt_prompt(code, subcalls):
+from motor.motor_asyncio import AsyncIOMotorClient
+import asyncio
+
+MONGO_URL = "mongodb://admin:admin_password@localhost:27017"
+MONGO_DB_NAME = "summary_db"
+MONGO_COLLECTION_NAME = "summaries"
+
+client = AsyncIOMotorClient(MONGO_URL)
+db = client[MONGO_DB_NAME]
+collection = db[MONGO_COLLECTION_NAME]
+
+async def run_chatgpt_prompt(code, subcalls):
     prompt = "Subcall defintions: \n"
     for subcall, val in subcalls.items():
         if val is not None:
@@ -21,7 +32,10 @@ def run_chatgpt_prompt(code, subcalls):
     if len(subcalls.items()) > 0:
         prompt += " based on the subcall definitions provided above"
     prompt += "."
-    completion = openai.ChatCompletion.create(
+
+    # Wrap the synchronous call in asyncio.to_thread()
+    completion = await asyncio.to_thread(
+        openai.ChatCompletion.create,
         model="gpt-3.5-turbo",
         messages=[
                 {"role": "system", "content": "You are a code summarization assistant."},
@@ -32,25 +46,30 @@ def run_chatgpt_prompt(code, subcalls):
     return completion['choices'][0]['message']['content']
 
 
-
-def run_summary(graph, node, chain=[]):
+async def run_summary(graph, node, chain=[]):
+    tasks = []
+    graph.in_progress.add(node)
     for subcall in graph.nodes[node]["subcalls"]:
-        if subcall.flavor == Flavor.METHOD:
-            if graph.nodes[subcall]["summary"] is None and subcall.name != node.name and subcall not in chain:
-                print("SC: ", type(subcall))
-                run_summary(graph, subcall, [node] + chain)
+        if subcall.flavor == Flavor.METHOD or subcall.flavor == Flavor.FUNCTION:
+            if graph.nodes[subcall]["summary"] is None and subcall.name != node.name and subcall not in chain and node not in graph.in_progress:
+                tasks.append(run_summary(graph, subcall, [node] + chain))
+
+    # Run all tasks concurrently
+    await asyncio.gather(*tasks)
+
     subcalls = {}
     for subsubcall in graph.nodes[node]["subcalls"]:
-        if subsubcall.flavor == Flavor.METHOD:
+        if subsubcall.flavor == Flavor.METHOD or subsubcall.flavor == Flavor.FUNCTION:
             subcalls[subsubcall] = graph.nodes[subsubcall]["summary"]
-    
+
     code = "".join(open(graph.nodes[node]["file"]).readlines()[node.ast_node.lineno - 1:node.ast_node.end_lineno+1])
-    graph.nodes[node]["summary"] = run_chatgpt_prompt(code, subcalls)
+    graph.nodes[node]["summary"] = await run_chatgpt_prompt(code, subcalls)
+
     
 def constrcut_replace_maps(nodes):
     replace_map = {}
     for node in nodes:
-        if node.flavor == Flavor.METHOD:
+        if node.flavor == Flavor.METHOD or node.flavor == Flavor.FUNCTION:
             file = nodes[node]["file"]
             if file not in replace_map:
                 replace_map[file] = []
@@ -69,8 +88,9 @@ def generate_replace_file(file, replace_map):
         final_data = final_data.replace("".join(data[start - 1 : end]), repl)
     return final_data
 
-def get_docfile(prompt):
-    completion = openai.ChatCompletion.create(
+async def get_docfile(prompt):
+    completion = await asyncio.to_thread(
+        openai.ChatCompletion.create,
         model="gpt-3.5-turbo",
         messages=[
                 {"role": "system", "content": "You are a code summarization assistant."},
@@ -80,8 +100,11 @@ def get_docfile(prompt):
 
     return completion['choices'][0]['message']['content']
 
-def summarize_repo(repo_dir, load_from_file=True):
-    print("Repo_dir: ",repo_dir)
+async def update_collection(task_id, update):
+    await collection.update_one({"task_id": task_id}, {"$set": update})
+
+async def summarize_repo(task_id, repo_dir, load_from_file=True):
+    print("Repo_dir: ", repo_dir)
     autodocs_dir = os.path.join(repo_dir, "autodocs")
     if load_from_file:
         with open('my_dict.pickle', 'rb') as f:
@@ -91,8 +114,9 @@ def summarize_repo(repo_dir, load_from_file=True):
         graph, file_map = get_call_graph_from_repo(repo_dir)
 
     for node in tqdm.tqdm(graph.nodes.keys()):
-        if node.flavor == Flavor.METHOD:
-            run_summary(graph, node)
+        print("running summaries")
+        if node.flavor == Flavor.METHOD or node.flavor == Flavor.FUNCTION:
+            await run_summary(graph, node)
 
     with open('my_dict.pickle', 'wb') as f:
         pickle.dump(graph, f)
@@ -105,31 +129,49 @@ def summarize_repo(repo_dir, load_from_file=True):
 
     print("Root: ", root)
     for file in file_map:
-        try:
-            repl_data = generate_replace_file(file, repl_map[file])
-        except:
-            repl_data = open(file).read()
-        
-        try:
-            file_name = os.path.basename(file).replace(".py", ".md")
-            root = os.path.join(repo_dir, 'autodocs')
-            path = os.path.join(root, file_name)
-            docs = get_docfile(repl_data)
-            print(f"outputting to: {path}")
-            with open(path, "w") as f:
-                f.write(docs)
-        except:
-            print(f'Failed for {file}')
+        #try:
+        repl_data = generate_replace_file(file, repl_map[file])
+        file_name = os.path.basename(file).replace(".py", ".md")
+        root = os.path.join(repo_dir, 'autodocs')
+        path = os.path.join(root, file_name)
+        docs = await get_docfile(repl_data)
+        print(f"outputting to: {path}")
+        with open(path, "w") as f:
+            f.write(docs)
+        # Update the MongoDB document with the current progress for each file
+        update_key = f"completed_summaries.{file.replace('.', '_')}"
+        update = {
+            update_key: docs
+        }
+        asyncio.get_event_loop().create_task(update_collection(task_id, update))
+        #except Exception as e:
+        #    print(f'Failed for {file} with error: {e}')
+        #    # Update the MongoDB document with the failed file
+        #    update_key = f"failed_summaries.{file.replace('.', '_')}"
+        #    update = {
+        #        update_key: str(e) or "Unknown error"
+        #    }
+
+        #    asyncio.get_event_loop().create_task(update_collection(task_id, update))
+
+    # Update the MongoDB document with the status as completed
+    update = {
+        "status": "completed"
+    }
+
+    asyncio.get_event_loop().create_task(update_collection(task_id, update))
 
 
-def generate_docs():
-    summarize_repo(".")
+async def generate_docs():
+    await summarize_repo(".")
 
 def clone_repo(repo_url, local_dir):
+    print(f'Cloning {repo_url} to {local_dir}')
     if not os.path.exists(local_dir):
         os.makedirs(local_dir)
     try:
         git.Repo.clone_from(repo_url, local_dir)
+        print("Cloned")
     except Exception as e:
         print(f"Error while cloning the repository: {e}")
 
@@ -147,9 +189,9 @@ def push_to_repo(repo_dir, branch, commit_message, pat, repo_url):
     except Exception as e:
         print(f"Error while pushing to the repository: {e}")
 
-def generate_documentation(local_dir):
+async def generate_documentation(task_id, local_dir):
     # Generate documentation
-    graph = summarize_repo(local_dir, load_from_file=False)
+    graph = await summarize_repo(task_id, local_dir, load_from_file=False)
     print("AutoDocs Generated")
     return graph
 
@@ -160,15 +202,16 @@ def push_documentation_to_github(pat, repo_url, local_dir,username, branch="auto
     push_to_repo(local_dir, branch, commit_message, pat, repo_url)
     print("AutoDocs Pushed to GitHub")
 
-def generate_docs_for_github_repo(pat, repo_url, username, branch="autodocs"):
+async def generate_docs_for_github_repo(pat, repo_url, username, branch="autodocs"):
     local_dir = os.path.join(username, repo_url[8:])
     print("localdir: ", local_dir)
     
     # Clone the repository
+    print(f"Cloning Repo {repo_url}")
     clone_repo(repo_url, local_dir)
 
     # Generate documentation
-    graph = generate_documentation(local_dir)
+    graph = await generate_documentation(local_dir)
 
     # Push the generated documentation to the repository
     push_documentation_to_github(pat, repo_url, local_dir, branch)

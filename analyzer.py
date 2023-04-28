@@ -57,6 +57,7 @@ class CallGraphVisitor(ast.NodeVisitor):
 
         # full module names for all given files
         self.module_to_filename = {}  # inverse mapping for recording which file each AST node came from
+
         for filename in filenames:
             mod_name = get_module_name(filename)
             self.module_to_filename[mod_name] = filename
