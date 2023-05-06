@@ -16,7 +16,7 @@ import asyncio
 
 MONGO_URL = "mongodb://admin:admin_password@localhost:27017"
 MONGO_DB_NAME = "summary_db"
-MONGO_COLLECTION_NAME = "summaries"
+MONGO_COLLECTION_NAME = "tasks"
 
 client = AsyncIOMotorClient(MONGO_URL)
 db = client[MONGO_DB_NAME]
