@@ -22,7 +22,7 @@ async def create_summary(task_id: str, data: AnalyseRepoData):
 
     await asyncio.to_thread(clone_repo, data["repo_url"], local_dir)
     summary = {
-        "task_id": task_id,
+        "_id": task_id,
         "repo_id": data["repo_id"], # Add repo_id to the summary
         "repo_url": data["repo_url"],
         "username": data["username"],

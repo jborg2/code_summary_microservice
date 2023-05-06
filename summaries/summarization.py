@@ -1,5 +1,5 @@
-from call_graph_generator import get_call_graph_from_repo
-from node import Flavor
+from .call_graph_generator import get_call_graph_from_repo
+from .node import Flavor
 import openai
 import pickle
 import tqdm

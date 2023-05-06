@@ -6,14 +6,14 @@ router = APIRouter()
 
 @router.get("/get_task/{task_id}")
 async def get_task(task_id: str):
-    task = await tasks_collection.find_one({"task_id": task_id})
+    task = await tasks_collection.find_one({"_id": task_id})
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     return task
 
 @router.get("/get_directory_tree/{task_id}")
 async def get_directory_tree(task_id: str):
-    task = await tasks_collection.find_one({"task_id": task_id})
+    task = await tasks_collection.find_one({"_id": task_id})
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     completed_summaries = format_directory_tree(task["completed_summaries"])

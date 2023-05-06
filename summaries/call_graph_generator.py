@@ -1,5 +1,5 @@
-from analyzer import CallGraphVisitor
-from visgraph import VisualGraph
+from .analyzer import CallGraphVisitor
+from .visgraph import VisualGraph
 import os
 
 def list_files(dir):

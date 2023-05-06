@@ -8,7 +8,7 @@ import symtable
 import tqdm
 from typing import Union
 
-from anutils import (
+from .anutils import (
     ExecuteInInnerScope,
     Scope,
     UnresolvedSuperCallError,
@@ -19,7 +19,7 @@ from anutils import (
     sanitize_exprs,
     tail,
 )
-from node import Flavor, Node
+from .node import Flavor, Node
 
 # TODO: add Cython support (strip type annotations in a preprocess step, then treat as Python)
 # TODO: built-in functions (range(), enumerate(), zip(), iter(), ...):

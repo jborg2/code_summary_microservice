@@ -5,7 +5,7 @@
 import ast
 import os.path
 
-from node import Flavor
+from .node import Flavor
 
 
 def head(lst):
