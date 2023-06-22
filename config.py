@@ -1,4 +1,7 @@
-MONGO_URL = "mongodb://admin:admin_password@localhost:27017"
+import dotenv
+import os
+dotenv.load_dotenv()
+MONGO_URL = os.environ("MONGO_URI")#"mongodb://admin:admin_password@localhost:27017"
 MONGO_DB_NAME = "summary_db"
 MONGO_PROJECT_COLLECTION_NAME = "projects"
 MONGO_REPO_COLLECTION_NAME = "repos"
