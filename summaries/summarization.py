@@ -8,9 +8,6 @@ import git
 import shutil
 import json 
 
-openai_key = "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"
-openai.api_key = openai_key
-
 from motor.motor_asyncio import AsyncIOMotorClient
 import asyncio
 
@@ -220,8 +217,9 @@ def push_to_repo(repo_dir, branch, commit_message, pat, repo_url):
     except Exception as e:
         print(f"Error while pushing to the repository: {e}")
 
-async def generate_documentation(task_id, local_dir):
+async def generate_documentation(openai_token, task_id, local_dir):
     # Generate documentation
+    openai.api_key = openai_token
     graph = await summarize_repo(task_id, local_dir, load_from_file=False)
     print("AutoDocs Generated")
     return graph

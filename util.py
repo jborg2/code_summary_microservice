@@ -35,4 +35,4 @@ async def create_summary(task_id: str, data: AnalyseRepoData):
         "created_at": datetime.utcnow()  # Add creation timestamp
     }
     await tasks_collection.insert_one(summary)
-    await generate_documentation(task_id, local_dir)
+    await generate_documentation(data.openai_token, task_id, local_dir)

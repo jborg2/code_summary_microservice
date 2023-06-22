@@ -2,7 +2,8 @@ from pydantic import BaseModel
 from typing import Optional
 
 class AnalyseRepoData(BaseModel):
-    access_token: str
+    github_token: str
+    openai_token: str
     username: str
     repo_name: str
     local_dir: str
